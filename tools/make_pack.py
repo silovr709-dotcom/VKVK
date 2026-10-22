@@ -401,55 +401,54 @@ PHONE = '+7 (910) 537-89-91'
 # смысл лежит в центральных 920 px по горизонтали.
 # ==================================================================
 
+def ink_curtain(w, h, top=0.44, mid=0.74, bottom=0.94):
+    """Плотная завеса поверх фотографии — в точности как на первом экране
+    сайта: снизу почти непрозрачно (там лежит заголовок), сверху ровно
+    столько, чтобы не потерялась шапка ВК."""
+    data = []
+    for y in range(h):
+        t = y / max(1, h - 1)
+        if t < 0.5:
+            a = top + (mid - top) * (t / 0.5)
+        else:
+            a = mid + (bottom - mid) * ((t - 0.5) / 0.5)
+        data.append(int(255 * a))
+    m = Image.new('L', (1, h))
+    m.putdata(data)
+    return m.resize((w, h))
+
+
 def make_cover():
     print('01 · Главная обложка')
     w, h = 1920, 768
-    x_text = 420
+    x_text = 405
 
-    base = ink_field((w, h))
-
-    # холодный ореол за фигурами — отделяет вас от поля, не рисуя рамки
-    base = warm_glow(base, cx=0.78, cy=0.34, color=(58, 74, 116), strength=0.22, falloff=3.0)
-
-    # вы вписаны в обложку: ни пластины, ни рамки. Фигура стоит в поле и
-    # книзу растворяется в нём, а не обрезается краем холста.
-    cut = Image.open(os.path.join(SRC, 'team/new/rob-kate-novye-bez-fona.png')).convert('RGBA')
-    scale = 0.714
-    cw, ch = int(cut.width * scale), int(cut.height * scale)
-    cut = cut.resize((cw, ch), Image.LANCZOS)
-    cut_rgb = ImageEnhance.Brightness(cut.convert('RGB')).enhance(1.35)
-    cut_rgb.putalpha(cut.getchannel('A'))
-    cut = cut_rgb
-
-    top = 95
-    left = 1217
-    fade_from, fade_to = 460, 700          # в координатах холста
-    melt = ImageChops.invert(vertical_fade((cw, ch),
-                                           start=(fade_from - top) / ch,
-                                           end=(fade_to - top) / ch, power=1.0))
-    cut.putalpha(ImageChops.multiply(cut.getchannel('A'), melt))
-    base.paste(cut, (left, top), cut)
+    # ваша фотография на всю обложку — как первый экран сайта.
+    # Никакой вырезки и рамки: вы и есть обложка.
+    snap = photo('team/hero-rob-kate-wide@2x.webp', (w, h), focus=(0.5, 0.42))
+    snap = grade(snap, contrast=1.12, color=1.05)
+    snap = warm_glow(snap, cx=0.76, cy=0.16, color=(255, 206, 140), strength=0.26, falloff=2.4)
+    base = Image.composite(Image.new('RGB', (w, h), INK), snap, ink_curtain(w, h))
+    # сверху ВК накладывает своё меню, поэтому верхний край гасим плотнее —
+    # на сайте ровно так же сделано ради прозрачной шапки
+    topm = ImageChops.invert(vertical_fade((w, h), start=0.0, end=200 / h, power=1.0))
+    base = Image.composite(Image.new('RGB', (w, h), INK), base,
+                           topm.point(lambda v: int(v * 0.85)))
+    base = grain(base, sigma=6, opacity=0.04)
 
     d = ImageDraw.Draw(base)
 
-    # надзаголовок с золотым штрихом слева — как на сайте
-    rule(d, x_text, x_text + 58, 210, GOLD_ON_DARK, 1)
-    draw_text(d, (x_text + 78, 212), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
+    # надзаголовок с золотым штрихом слева — приём с сайта
+    rule(d, x_text, x_text + 58, 300, GOLD_ON_DARK, 1)
+    draw_text(d, (x_text + 78, 307), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
               GOLD_ON_DARK, tracking=7)
 
-    # обложка читается мелко и быстро, поэтому здесь только крупное:
     # плотная антиква и одна рукописная строка ей в противовес
-    draw_text(d, (x_text, 372), BRAND, 'display', 162, CREAM, tracking=1)
+    draw_text(d, (x_text, 432), BRAND, 'display', 140, CREAM, tracking=1)
 
-    ornament_rule(d, x_text, 428, 260, GOLD_ON_DARK, diamond=5)
+    ornament_rule(d, x_text, 476, 260, GOLD_ON_DARK, diamond=5)
 
-    draw_text(d, (x_text, 502), 'кухни на заказ', 'script', 74, GOLD_LIGHT, tracking=1)
-
-    draw_text(d, (x_text, 548), 'Роберт и Екатерина · Тверь · с 2009',
-              'sans', 22, CREAM_DIM, tracking=0.8)
-
-    # знак — внизу слева, в поле: он больше не спорит с портретом
-    draw_mark(d, (x_text, 606, x_text + 100, 706), color=GOLDSOFT, accent=GOLD_LIGHT, lw=3)
+    draw_text(d, (x_text, 542), 'кухни на заказ', 'script', 74, GOLD_LIGHT, tracking=1)
 
     save(base, os.path.join(OUT, '01-oblozhka', 'oblozhka-1920x768.jpg'))
 
