@@ -37,23 +37,28 @@ OUT = os.path.join(ROOT, 'vk')
 # поле, тем дороже выглядит лежащая на нём тонкая светлая линия.
 # ==================================================================
 
-INK = (19, 41, 74)
-SOOT = (11, 26, 48)
-ABYSS = (6, 14, 27)          # почти чёрная синь для глубоких плашек
-CREAM = (255, 252, 247)
-BONE = (246, 240, 231)
-SAND = (236, 227, 213)
-LINE = (221, 212, 197)
-STONE = (107, 99, 92)
-CLAY = (162, 152, 140)
-GOLD = (122, 97, 60)
-GOLDLINE = (182, 154, 99)
-GOLDSOFT = (211, 189, 149)
-GOLD_LIGHT = (232, 214, 176)
+INK = (11, 26, 48)
+SOOT = (7, 17, 33)
+ABYSS = (3, 9, 20)           # глубокая синь — только в самых тенях
+CREAM = (252, 251, 248)
+BONE = (243, 242, 240)
+SAND = (230, 229, 227)
+LINE = (212, 212, 210)
+STONE = (119, 120, 122)
+CLAY = (166, 167, 168)
 
-GOLD_ON_DARK = GOLDSOFT
-CREAM_DIM = (206, 213, 229)
-CREAM_SOFT = (178, 187, 208)
+# Металл: белое золото и платина вместо жёлтого золота.
+# Белое золото — почти белое с едва заметным теплом, платина — холоднее;
+# разница между ними и держит всю графику.
+METAL_DEEP = (146, 152, 158)
+METAL_LINE = (203, 206, 205)     # тонкие рамки
+METAL_SOFT = (168, 174, 177)
+METAL_LIGHT = (234, 231, 222)    # белое золото
+METAL_ON_DARK = (213, 214, 211)
+
+# нейтральные серые — без синевы, иначе поле выглядит замыленным
+CREAM_DIM = (199, 199, 197)
+CREAM_SOFT = (163, 164, 163)
 
 # ==================================================================
 # ШРИФТЫ
@@ -185,7 +190,7 @@ def photo(name, size, bright=1.0, focus=(0.5, 0.5)):
     return img
 
 
-def grade(img, contrast=1.14, color=1.08, shadow=(228, 234, 255), highlight=(22, 14, 5)):
+def grade(img, contrast=1.14, color=1.08, shadow=(186, 200, 232), highlight=(22, 14, 5)):
     """
     Плёночная цветокоррекция. Контраст и насыщенность — чтобы картинка
     перестала быть плоской, сплит-тонирование — чтобы тени ушли в холодную
@@ -288,7 +293,7 @@ def ink_field(size, glow=True):
 def _mute(color, k):
     """Растворяет цвет в темноте: золото в полную силу по краю холста
     читается как дешёвая рамка, приглушённое — как тиснение."""
-    base = (10, 16, 26)
+    base = (8, 14, 24)
     return tuple(int(base[i] + (color[i] - base[i]) * k) for i in range(3))
 
 
@@ -318,6 +323,15 @@ def corner_marks(draw, w, h, inset, arm, color, width=1):
         draw.line(pts, fill=color, width=width, joint='curve')
 
 
+def cell_frame(draw, box, color=METAL_LINE, inset=6, width=1):
+    """Тонкая рамка из белого золота: две волосяные линии с просветом.
+    Геометрия держится на том, что просвет везде одинаковый."""
+    x0, y0, x1, y1 = box
+    draw.rectangle([x0, y0, x1, y1], outline=_mute(color, 0.90), width=width)
+    draw.rectangle([x0 + inset, y0 + inset, x1 - inset, y1 - inset],
+                   outline=_mute(color, 0.34), width=width)
+
+
 def ornament_rule(draw, x, y, length, color, diamond=7, thickness=1):
     """Разделитель: линия, ромб, линия. Ровная черта смотрится как
     разделитель таблицы, ромб возвращает ей характер."""
@@ -340,7 +354,7 @@ def rule(draw, x0, x1, y, fill, thickness=1):
     draw.rectangle([x0, y, x1, y + thickness], fill=fill)
 
 
-def draw_mark(draw, box, color=GOLDSOFT, accent=GOLD_LIGHT, lw=3):
+def draw_mark(draw, box, color=METAL_SOFT, accent=METAL_LIGHT, lw=3):
     """Фирменный знак: фасад шкафа в разрезе с профилями-ручками."""
     x0, y0, x1, y1 = box
     w, h = x1 - x0, y1 - y0
@@ -418,19 +432,25 @@ def ink_curtain(w, h, top=0.44, mid=0.74, bottom=0.94):
     return m.resize((w, h))
 
 
+COVER_FACTS = [
+    ('Кухни', 'под ключ'),
+    ('Гарантия', '24 месяца'),
+    ('Всегда', 'на связи'),
+    ('Любые', 'материалы'),
+    ('Любые', 'размеры'),
+]
+
+
 def make_cover():
     print('01 · Главная обложка')
     w, h = 1920, 768
     x_text = 405
 
-    # ваша фотография на всю обложку — как первый экран сайта.
-    # Никакой вырезки и рамки: вы и есть обложка.
     snap = photo('team/hero-rob-kate-wide@2x.webp', (w, h), focus=(0.5, 0.42))
-    snap = grade(snap, contrast=1.12, color=1.05)
-    snap = warm_glow(snap, cx=0.76, cy=0.16, color=(255, 206, 140), strength=0.26, falloff=2.4)
+    snap = grade(snap, contrast=1.12, color=1.02)
+    snap = warm_glow(snap, cx=0.76, cy=0.16, color=(190, 210, 240), strength=0.22, falloff=2.4)
     base = Image.composite(Image.new('RGB', (w, h), INK), snap, ink_curtain(w, h))
-    # сверху ВК накладывает своё меню, поэтому верхний край гасим плотнее —
-    # на сайте ровно так же сделано ради прозрачной шапки
+    # сверху ВК накладывает своё меню — гасим, как сделано на сайте
     topm = ImageChops.invert(vertical_fade((w, h), start=0.0, end=200 / h, power=1.0))
     base = Image.composite(Image.new('RGB', (w, h), INK), base,
                            topm.point(lambda v: int(v * 0.85)))
@@ -438,17 +458,25 @@ def make_cover():
 
     d = ImageDraw.Draw(base)
 
-    # надзаголовок с золотым штрихом слева — приём с сайта
-    rule(d, x_text, x_text + 58, 300, GOLD_ON_DARK, 1)
-    draw_text(d, (x_text + 78, 307), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
-              GOLD_ON_DARK, tracking=7)
+    # типографический блок собран в тонкую раму
+    cell_frame(d, (372, 156, 952, 448), METAL_LINE, inset=10)
+    rule(d, x_text, x_text + 58, 208, METAL_ON_DARK, 1)
+    draw_text(d, (x_text + 78, 215), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
+              METAL_ON_DARK, tracking=7)
+    draw_text(d, (x_text, 330), BRAND, 'display', 122, CREAM, tracking=1)
+    draw_text(d, (x_text, 420), 'кухни на заказ', 'script', 62, METAL_LIGHT, tracking=1)
 
-    # плотная антиква и одна рукописная строка ей в противовес
-    draw_text(d, (x_text, 432), BRAND, 'display', 140, CREAM, tracking=1)
-
-    ornament_rule(d, x_text, 476, 260, GOLD_ON_DARK, diamond=5)
-
-    draw_text(d, (x_text, 542), 'кухни на заказ', 'script', 74, GOLD_LIGHT, tracking=1)
+    # пять фактов — одним рядом, каждый в своей тонкой раме
+    gap = 14
+    cw = (1515 - 405 - gap * 4) // 5
+    top_c, bot_c = 452, 560
+    for i, (a, b) in enumerate(COVER_FACTS):
+        x0 = 405 + i * (cw + gap)
+        cell_frame(d, (x0, top_c, x0 + cw, bot_c), METAL_LINE, inset=6)
+        cxm = x0 + cw / 2
+        draw_text(d, (cxm, top_c + 42), a, 'sans-medium', 21, METAL_LIGHT,
+                  tracking=1.4, anchor='ma')
+        draw_text(d, (cxm, top_c + 72), b, 'sans', 21, CREAM, tracking=0.6, anchor='ma')
 
     save(base, os.path.join(OUT, '01-oblozhka', 'oblozhka-1920x768.jpg'))
 
@@ -499,29 +527,29 @@ def make_live_cover():
         d = ImageDraw.Draw(img)
         cx = w // 2
 
-        inner_frame(d, w, h, 40, GOLDLINE, width=2)
+        inner_frame(d, w, h, 40, METAL_LINE, width=2)
 
         # номер слайда между двумя штрихами
         label = f'{i:02d}'
         lw = text_width(label, 'sans-medium', 24, 6)
-        rule(d, cx - lw / 2 - 76, cx - lw / 2 - 24, 1030, GOLD_ON_DARK, 2)
-        rule(d, cx + lw / 2 + 24, cx + lw / 2 + 76, 1030, GOLD_ON_DARK, 2)
-        draw_text(d, (cx, 1030), label, 'sans-medium', 24, GOLD_ON_DARK, tracking=6, anchor='ma')
+        rule(d, cx - lw / 2 - 76, cx - lw / 2 - 24, 1030, METAL_ON_DARK, 2)
+        rule(d, cx + lw / 2 + 24, cx + lw / 2 + 76, 1030, METAL_ON_DARK, 2)
+        draw_text(d, (cx, 1030), label, 'sans-medium', 24, METAL_ON_DARK, tracking=6, anchor='ma')
 
         y = 1110
         for line in title_lines:
             draw_text(d, (cx, y), line, 'display-light', 104, CREAM, tracking=2, anchor='ma')
             y += 112
 
-        ornament_rule(d, cx - 130, y + 26, 260, GOLD_ON_DARK, diamond=8, thickness=2)
+        ornament_rule(d, cx - 130, y + 26, 260, METAL_ON_DARK, diamond=8, thickness=2)
 
         draw_paragraph(d, (cx, y + 76), sub, 'sans', 32, CREAM_DIM,
                        max_width=780, leading=1.55, anchor='ma')
 
-        draw_mark(d, (cx - 40, 1620, cx + 40, 1700), color=GOLDSOFT, accent=GOLD_LIGHT, lw=2)
+        draw_mark(d, (cx - 40, 1620, cx + 40, 1700), color=METAL_SOFT, accent=METAL_LIGHT, lw=2)
         draw_text(d, (cx, 1748), BRAND, 'display-light', 62, CREAM, tracking=6, anchor='ma')
         draw_text(d, (cx, 1826), 'КУХНИ НА ЗАКАЗ · ТВЕРЬ', 'sans-medium', 22,
-                  GOLD_ON_DARK, tracking=7, anchor='ma')
+                  METAL_ON_DARK, tracking=7, anchor='ma')
 
         save(img, os.path.join(OUT, '02-zhivaya-oblozhka', f'slaid-{i:02d}-1080x1920.jpg'))
 
@@ -543,25 +571,25 @@ def make_avatar():
     r_out = int(size * 0.455)
 
     # два тонких кольца — рамка вместо заливки
-    d.ellipse([cx - r_out, cx - r_out, cx + r_out, cx + r_out], outline=GOLDLINE, width=3)
+    d.ellipse([cx - r_out, cx - r_out, cx + r_out, cx + r_out], outline=METAL_LINE, width=3)
     d.ellipse([cx - r_out + 26, cx - r_out + 26, cx + r_out - 26, cx + r_out - 26],
               outline=(78, 96, 128), width=1)
 
     # два ромба сверху и снизу — метки по вертикальной оси
     for cy in (cx - r_out - 16, cx + r_out + 16):
         d.polygon([(cx, cy - 18), (cx + 9, cy), (cx, cy + 18), (cx - 9, cy)],
-                  fill=GOLD_ON_DARK)
+                  fill=METAL_ON_DARK)
 
     mark_w = 268
     draw_mark(d, (cx - mark_w // 2, 232, cx + mark_w // 2, 232 + mark_w),
-              color=GOLDSOFT, accent=GOLD_LIGHT, lw=5)
+              color=METAL_SOFT, accent=METAL_LIGHT, lw=5)
 
-    ornament_rule(d, cx - 150, 578, 300, GOLD_ON_DARK, diamond=9, thickness=2)
+    ornament_rule(d, cx - 150, 578, 300, METAL_ON_DARK, diamond=9, thickness=2)
 
     draw_text(d, (cx, 660), BRAND, 'display', 152, CREAM, tracking=3, anchor='ma')
-    draw_text(d, (cx, 726), 'кухни на заказ', 'script', 74, GOLD_LIGHT, tracking=1, anchor='ma')
+    draw_text(d, (cx, 726), 'кухни на заказ', 'script', 74, METAL_LIGHT, tracking=1, anchor='ma')
     draw_text(d, (cx, 792), 'ТВЕРЬ · С 2009', 'sans-medium', 22,
-              GOLD_ON_DARK, tracking=8, anchor='ma')
+              METAL_ON_DARK, tracking=8, anchor='ma')
 
     save(img, os.path.join(OUT, '03-avatar', 'avatar-1000x1000.png'))
 
@@ -608,15 +636,15 @@ def make_menu():
         img = warm_glow(img, cx=0.78, cy=0.16, color=(255, 206, 140), strength=0.40, falloff=2.2)
 
         d = ImageDraw.Draw(img)
-        inner_frame(d, w, h, 16, GOLDLINE, width=2)
+        inner_frame(d, w, h, 16, METAL_LINE, width=2)
 
-        draw_text(d, (46, 44), f'{i:02d}', 'sans-medium', 22, GOLD_ON_DARK, tracking=4)
-        rule(d, 46, 46 + 26, 84, GOLD_ON_DARK, 2)
+        draw_text(d, (46, 44), f'{i:02d}', 'sans-medium', 22, METAL_ON_DARK, tracking=4)
+        rule(d, 46, 46 + 26, 84, METAL_ON_DARK, 2)
 
         y = h - 128
         size_t = 58 if len(title) <= 15 else 48
         draw_text(d, (46, y), title, 'display-light', size_t, CREAM, tracking=1)
-        ornament_rule(d, 46, y + size_t + 12, 150, GOLD_ON_DARK, diamond=5, thickness=2)
+        ornament_rule(d, 46, y + size_t + 12, 150, METAL_ON_DARK, diamond=5, thickness=2)
 
         save(img, os.path.join(OUT, '04-menu',
                                f'menu-{i:02d}-{slug(title)}-752x512.jpg'))
@@ -678,13 +706,13 @@ def make_services():
 
         d = ImageDraw.Draw(card)
         # пластина ограничена золотым волосяным контуром
-        d.rectangle([pad, pad, w - pad - 1, pad + plate_h - 1], outline=GOLDLINE, width=2)
+        d.rectangle([pad, pad, w - pad - 1, pad + plate_h - 1], outline=METAL_LINE, width=2)
         # и внутренняя тень-подводка, отделяющая снимок от поля
         d.rectangle([pad - 6, pad - 6, w - pad + 5, pad + plate_h + 5], outline=LINE, width=1)
 
         y = pad + plate_h + 54
-        draw_text(d, (pad, y), f'{i:02d}', 'sans-medium', 20, GOLD, tracking=5)
-        rule(d, pad, pad + 28, y + 8, GOLDLINE, 2)
+        draw_text(d, (pad, y), f'{i:02d}', 'sans-medium', 20, METAL_LIGHT, tracking=5)
+        rule(d, pad, pad + 28, y + 8, METAL_LINE, 2)
 
         y += 40
         size_t = 60 if len(title) <= 22 else 50
@@ -694,9 +722,9 @@ def make_services():
         y = draw_paragraph(d, (pad, y + 8), text, 'sans', 26, STONE,
                            max_width=w - pad * 2, leading=1.5)
 
-        ornament_rule(d, pad, h - 138, 200, GOLDLINE, diamond=6, thickness=2)
+        ornament_rule(d, pad, h - 138, 200, METAL_LINE, diamond=6, thickness=2)
 
-        draw_text(d, (pad, h - 108), tag, 'display-italic', 40, GOLD)
+        draw_text(d, (pad, h - 108), tag, 'display-italic', 40, METAL_LIGHT)
         draw_text(d, (w - pad, h - 100), BRAND, 'display', 30, CLAY, anchor='ra')
 
         d.rectangle([0, 0, w - 1, h - 1], outline=LINE, width=2)
@@ -724,15 +752,15 @@ def make_stories():
     img = warm_glow(img, cx=0.5, cy=0.68, color=(52, 68, 104), strength=0.18, falloff=2.0)
     img = grain(img, sigma=6, opacity=0.05)
     d = ImageDraw.Draw(img)
-    inner_frame(d, w, h, 44, GOLDLINE, width=2)
+    inner_frame(d, w, h, 44, METAL_LINE, width=2)
 
-    draw_text(d, (pad, 900), 'МАЛЕНЬКАЯ КУХНЯ', 'sans-medium', 26, GOLD_ON_DARK, tracking=8)
-    rule(d, pad, pad + 120, 940, GOLD_ON_DARK, 2)
+    draw_text(d, (pad, 900), 'МАЛЕНЬКАЯ КУХНЯ', 'sans-medium', 26, METAL_ON_DARK, tracking=8)
+    rule(d, pad, pad + 120, 940, METAL_ON_DARK, 2)
     y = 1000
     for line in ['Два с половиной', 'метра, из которых', 'выжато всё']:
         draw_text(d, (pad, y), line, 'display-light', 94, CREAM, tracking=1)
         y += 116
-    ornament_rule(d, pad, y + 24, 260, GOLD_ON_DARK, diamond=8, thickness=2)
+    ornament_rule(d, pad, y + 24, 260, METAL_ON_DARK, diamond=8, thickness=2)
     draw_paragraph(d, (pad, y + 74),
                    'Хранение достаём из высоты, углов и нестандартных глубин. '
                    'Половина наших работ — как раз такие кухни.',
@@ -744,25 +772,25 @@ def make_stories():
     img = ink_field((w, h))
     img = warm_glow(img, cx=0.5, cy=0.3, color=(255, 206, 140), strength=0.13, falloff=3.0)
     d = ImageDraw.Draw(img)
-    inner_frame(d, w, h, 44, GOLDLINE, width=2)
+    inner_frame(d, w, h, 44, METAL_LINE, width=2)
 
     draw_text(d, (pad, 300), '5,0 ИЗ 5 НА ЯНДЕКС КАРТАХ', 'sans-medium', 26,
-              GOLD_ON_DARK, tracking=8)
-    rule(d, pad, pad + 120, 340, GOLD_ON_DARK, 2)
-    draw_text(d, (pad, 420), '«', 'display-light', 260, GOLD_ON_DARK)
+              METAL_ON_DARK, tracking=8)
+    rule(d, pad, pad + 120, 340, METAL_ON_DARK, 2)
+    draw_text(d, (pad, 420), '«', 'display-light', 260, METAL_ON_DARK)
     y = 640
     for line in ['Меняли проект', 'до тех пор, пока', 'не нашли решение']:
         draw_text(d, (pad, y), line, 'display-italic', 76, CREAM, tracking=1)
         y += 96
-    ornament_rule(d, pad, y + 26, 260, GOLD_ON_DARK, diamond=8, thickness=2)
+    ornament_rule(d, pad, y + 26, 260, METAL_ON_DARK, diamond=8, thickness=2)
     draw_paragraph(d, (pad, y + 76),
                    '«Вместе со мной выбирали цвета, материалы и меняли проект '
                    'до тех пор, пока не нашли идеальное решение.»',
                    'sans', 32, CREAM_DIM, max_width=w - pad * 2, leading=1.6)
-    double_rule(d, pad, 1600, 420, GOLD_ON_DARK, gap=6, thickness=2)
+    double_rule(d, pad, 1600, 420, METAL_ON_DARK, gap=6, thickness=2)
     draw_text(d, (pad, 1666), 'Анна', 'display', 54, CREAM)
     draw_text(d, (pad, 1748), 'ОТЗЫВ С ЯНДЕКС КАРТ', 'sans-medium', 24,
-              GOLD_ON_DARK, tracking=7)
+              METAL_ON_DARK, tracking=7)
     draw_text(d, (pad, 1800), f'{BRAND} · {CITY}', 'display', 46, CREAM, tracking=4)
     save(img, os.path.join(OUT, '06-storis', 'storis-02-otzyv-1080x1920.jpg'))
 
@@ -776,22 +804,22 @@ def make_stories():
     img = warm_glow(img, cx=0.5, cy=0.74, color=(52, 68, 104), strength=0.18, falloff=2.0)
     img = grain(img, sigma=6, opacity=0.05)
     d = ImageDraw.Draw(img)
-    inner_frame(d, w, h, 44, GOLDLINE, width=2)
+    inner_frame(d, w, h, 44, METAL_LINE, width=2)
 
-    draw_text(d, (pad, 1120), 'ЗАМЕР', 'sans-medium', 26, GOLD_ON_DARK, tracking=8)
-    rule(d, pad, pad + 120, 1160, GOLD_ON_DARK, 2)
+    draw_text(d, (pad, 1120), 'ЗАМЕР', 'sans-medium', 26, METAL_ON_DARK, tracking=8)
+    rule(d, pad, pad + 120, 1160, METAL_ON_DARK, 2)
     y = 1220
     for line in ['Приедем,', 'снимем размеры', 'и скажем правду']:
         draw_text(d, (pad, y), line, 'display-light', 100, CREAM, tracking=2)
         y += 108
-    ornament_rule(d, pad, y + 24, 260, GOLD_ON_DARK, diamond=8, thickness=2)
+    ornament_rule(d, pad, y + 24, 260, METAL_ON_DARK, diamond=8, thickness=2)
     draw_paragraph(d, (pad, y + 74),
                    'Что реально помещается в вашей кухне и сколько это будет стоить. '
                    'Проект и схемы электрики — бесплатно.',
                    'sans', 34, CREAM_DIM, max_width=w - pad * 2, leading=1.55)
 
     # кнопка: только контур, без заливки
-    d.rectangle([pad, 1640, w - pad, 1760], outline=GOLD_ON_DARK, width=2)
+    d.rectangle([pad, 1640, w - pad, 1760], outline=METAL_ON_DARK, width=2)
     d.rectangle([pad + 8, 1648, w - pad - 8, 1752], outline=(120, 132, 158), width=1)
     draw_text(d, (w / 2, 1688), PHONE, 'sans-medium', 48, CREAM, anchor='ma')
     draw_text(d, (w / 2, 1820), f'{BRAND} · {CITY}', 'display', 46, CREAM,
@@ -814,15 +842,15 @@ def make_posts():
     snap = grade(snap, contrast=1.13, color=1.07)
     img.paste(snap, (0, 0))
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 720, w, 724], fill=GOLDLINE)
+    d.rectangle([0, 720, w, 724], fill=METAL_LINE)
     y = 792
-    draw_text(d, (0, y), 'ПРОЕКТ', 'sans-medium', 22, GOLD, tracking=7)
-    rule(d, 0, 70, y + 10, GOLDLINE, 2)
+    draw_text(d, (0, y), 'ПРОЕКТ', 'sans-medium', 22, METAL_LIGHT, tracking=7)
+    rule(d, 0, 70, y + 10, METAL_LINE, 2)
     y += 46
     y = draw_paragraph(d, (0, y), 'Прямая кухня в нише с латунью', 'display', 62, INK,
                        max_width=w - 160, leading=1.14)
     y += 6
-    ornament_rule(d, 0, y + 26, 220, GOLDLINE, diamond=6, thickness=2)
+    ornament_rule(d, 0, y + 26, 220, METAL_LINE, diamond=6, thickness=2)
     y = draw_paragraph(d, (0, y + 66),
                        'Рабочая зона утоплена в деревянную нишу: она собирает кухню '
                        'в единый объём и прячет подсветку. Верхний ряд антресолей '
@@ -847,25 +875,25 @@ def make_posts():
     img = warm_glow(img, cx=0.88, cy=0.94, color=(92, 68, 36), strength=0.20, falloff=2.6)
     img = grain(img, sigma=6, opacity=0.05)
     d = ImageDraw.Draw(img)
-    inner_frame(d, w, h, 40, GOLDLINE, width=2)
+    inner_frame(d, w, h, 40, METAL_LINE, width=2)
 
     y = 150
-    draw_text(d, (0, y), 'ПЕРЕД ЗАМЕРОМ', 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
-    rule(d, 0, 70, y + 10, GOLD_ON_DARK, 2)
+    draw_text(d, (0, y), 'ПЕРЕД ЗАМЕРОМ', 'sans-medium', 22, METAL_ON_DARK, tracking=7)
+    rule(d, 0, 70, y + 10, METAL_ON_DARK, 2)
     y += 52
     y = draw_paragraph(d, (0, y), ['Пять вопросов,', 'которые мы задаём', 'на первой встрече'],
                        'display-light', 68, CREAM, max_width=w - 180, leading=1.14)
     y += 12
-    ornament_rule(d, 0, y + 24, 240, GOLD_ON_DARK, diamond=7, thickness=2)
+    ornament_rule(d, 0, y + 24, 240, METAL_ON_DARK, diamond=7, thickness=2)
     y += 86
     for i, item in enumerate(items, 1):
-        draw_text(d, (0, y), f'{i:02d}', 'display', 40, GOLD_ON_DARK)
+        draw_text(d, (0, y), f'{i:02d}', 'display', 40, METAL_ON_DARK)
         draw_paragraph(d, (92, y + 4), item, 'sans', 33, CREAM, max_width=w - 260, leading=1.4)
         y += 116
         d.line([(0, y - 40), (w - 180, y - 40)], fill=(52, 68, 96), width=1)
     draw_text(d, (0, h - 190), 'Хорошая кухня начинается с привычек,', 'display-italic', 38,
-              GOLD_ON_DARK)
-    draw_text(d, (0, h - 138), 'а не с фасадов.', 'display-italic', 38, GOLD_ON_DARK)
+              METAL_ON_DARK)
+    draw_text(d, (0, h - 138), 'а не с фасадов.', 'display-italic', 38, METAL_ON_DARK)
     save(add_margins(img, 72), os.path.join(OUT, '07-posti',
                                             'post-02-pyat-voprosov-1080x1350.jpg'))
 
@@ -873,16 +901,16 @@ def make_posts():
     img = ink_field((w, h))
     img = warm_glow(img, cx=0.26, cy=0.1, color=(64, 86, 132), strength=0.26, falloff=2.6)
     d = ImageDraw.Draw(img)
-    inner_frame(d, w, h, 40, GOLDLINE, width=2)
+    inner_frame(d, w, h, 40, METAL_LINE, width=2)
 
     y = 150
-    draw_text(d, (0, y), 'ЧЕСТНО', 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
-    rule(d, 0, 70, y + 10, GOLD_ON_DARK, 2)
+    draw_text(d, (0, y), 'ЧЕСТНО', 'sans-medium', 22, METAL_ON_DARK, tracking=7)
+    rule(d, 0, 70, y + 10, METAL_ON_DARK, 2)
     y += 52
     y = draw_paragraph(d, (0, y), ['Чего вы здесь', 'не найдёте'], 'display-light', 76, CREAM,
                        max_width=w - 180, leading=1.1)
     y += 10
-    ornament_rule(d, 0, y + 24, 240, GOLD_ON_DARK, diamond=7, thickness=2)
+    ornament_rule(d, 0, y + 24, 240, METAL_ON_DARK, diamond=7, thickness=2)
     y += 74
     pairs = [
         ('Собственное производство', 'Своего цеха нет: размещаем заказ и ведём его сами'),
@@ -906,15 +934,15 @@ def make_posts():
     snap = grade(snap, contrast=1.12, color=1.06)
     img.paste(snap, (0, 0))
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 700, w, 704], fill=GOLDLINE)
+    d.rectangle([0, 700, w, 704], fill=METAL_LINE)
     y = 776
-    draw_text(d, (0, y), 'ЭТО МЫ', 'sans-medium', 22, GOLD, tracking=7)
-    rule(d, 0, 70, y + 10, GOLDLINE, 2)
+    draw_text(d, (0, y), 'ЭТО МЫ', 'sans-medium', 22, METAL_LIGHT, tracking=7)
+    rule(d, 0, 70, y + 10, METAL_LINE, 2)
     y += 46
     y = draw_paragraph(d, (0, y), '«На замер приеду я сам»', 'display-italic', 58, INK,
                        max_width=w - 160, leading=1.16)
     y += 8
-    ornament_rule(d, 0, y + 26, 220, GOLDLINE, diamond=6, thickness=2)
+    ornament_rule(d, 0, y + 26, 220, METAL_LINE, diamond=6, thickness=2)
     y = draw_paragraph(d, (0, y + 66),
                        'Снимает размеры, смотрит короба, вентиляцию и выводы коммуникаций. '
                        'Потом сам звонит вашему прорабу и электрику — чтобы розетки '
@@ -950,19 +978,19 @@ def make_video_cover():
     base.paste(snap, (0, 0), fade_mask((w, h), start=0.34, end=0.78, power=1.1))
 
     d = ImageDraw.Draw(base)
-    inner_frame(d, w, h, 36, GOLDLINE, width=1)
+    inner_frame(d, w, h, 36, METAL_LINE, width=1)
 
-    draw_text(d, (92, 210), 'КАК МЫ ЭТО ДЕЛАЕМ', 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
-    rule(d, 92, 92 + 54, 224, GOLD_ON_DARK, 1)
+    draw_text(d, (92, 210), 'КАК МЫ ЭТО ДЕЛАЕМ', 'sans-medium', 22, METAL_ON_DARK, tracking=7)
+    rule(d, 92, 92 + 54, 224, METAL_ON_DARK, 1)
     y = 262
     for line in ['Кухня от замера', 'до первой готовки']:
         draw_text(d, (92, y), line, 'display-light', 76, CREAM, tracking=2)
         y += 82
-    ornament_rule(d, 92, y + 16, 220, GOLD_ON_DARK, diamond=6, thickness=1)
+    ornament_rule(d, 92, y + 16, 220, METAL_ON_DARK, diamond=6, thickness=1)
     draw_text(d, (92, y + 48), '10 шагов · проект бесплатно · гарантия 24 месяца',
               'sans', 25, CREAM_DIM)
 
-    draw_mark(d, (w - 168, 84, w - 84, 168), color=GOLDSOFT, accent=GOLD_LIGHT, lw=2)
+    draw_mark(d, (w - 168, 84, w - 84, 168), color=METAL_SOFT, accent=METAL_LIGHT, lw=2)
     save(base, os.path.join(OUT, '08-video', 'oblozhka-video-1280x720.jpg'))
 
 
@@ -990,15 +1018,15 @@ def make_albums():
         img = warm_glow(img, cx=0.8, cy=0.14, color=(255, 206, 140), strength=0.42, falloff=2.2)
 
         d = ImageDraw.Draw(img)
-        inner_frame(d, w, h, 26, GOLDLINE, width=2)
+        inner_frame(d, w, h, 26, METAL_LINE, width=2)
 
-        draw_text(d, (74, 66), f'{i:02d}', 'sans-medium', 22, GOLD_ON_DARK, tracking=4)
-        rule(d, 74, 74 + 26, 106, GOLD_ON_DARK, 2)
+        draw_text(d, (74, 66), f'{i:02d}', 'sans-medium', 22, METAL_ON_DARK, tracking=4)
+        rule(d, 74, 74 + 26, 106, METAL_ON_DARK, 2)
 
         y = h - 214
         draw_text(d, (74, y), title, 'display-light', 78, CREAM, tracking=2)
-        ornament_rule(d, 74, y + 100, 220, GOLD_ON_DARK, diamond=7, thickness=2)
-        draw_text(d, (74, y + 138), sub.upper(), 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
+        ornament_rule(d, 74, y + 100, 220, METAL_ON_DARK, diamond=7, thickness=2)
+        draw_text(d, (74, y + 138), sub.upper(), 'sans-medium', 22, METAL_ON_DARK, tracking=7)
 
         save(img, os.path.join(OUT, '09-albomy', f'albom-{i:02d}-{slug(title)}-1200x800.jpg'))
 
