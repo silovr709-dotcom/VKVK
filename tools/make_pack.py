@@ -62,9 +62,16 @@ CREAM_SOFT = (178, 187, 208)
 # ==================================================================
 
 FONT_FILES = {
-    'display-light': ('cormorant-300-cyr.ttf', 'cormorant-300-lat.ttf'),
-    'display': ('cormorant-400-cyr.ttf', 'cormorant-400-lat.ttf'),
-    'display-italic': ('cormorant-400-italic-cyr.ttf', 'cormorant-400-italic-lat.ttf'),
+    # плотный классический: Didone с настоящим весом, а не тонкая антиква
+    'display-light': ('playfair-600-cyr.ttf', 'playfair-600-lat.ttf'),
+    'display': ('playfair-700-cyr.ttf', 'playfair-700-lat.ttf'),
+    'display-italic': ('playfair-600-italic-cyr.ttf', 'playfair-600-italic-lat.ttf'),
+    'classic-500': ('playfair-500-cyr.ttf', 'playfair-500-lat.ttf'),
+    'prata': ('prata-400-cyr.ttf', 'prata-400-lat.ttf'),
+    # тонкий рукописный — контраст к плотной классике
+    'script': ('caveat-400-cyr.ttf', 'caveat-400-lat.ttf'),
+    'script-fine': ('pattaya-400-cyr.ttf', 'pattaya-400-lat.ttf'),
+    # текстовой набор остаётся прежним
     'sans': ('golos-400-cyr.ttf', 'golos-400-lat.ttf'),
     'sans-medium': ('golos-500-cyr.ttf', 'golos-500-lat.ttf'),
     'sans-bold': ('golos-600-cyr.ttf', 'golos-600-lat.ttf'),
@@ -278,12 +285,23 @@ def ink_field(size, glow=True):
 # и «золотых» кнопок здесь нет — от них дизайн дешевеет первым делом.
 # ==================================================================
 
+def _mute(color, k):
+    """Растворяет цвет в темноте: золото в полную силу по краю холста
+    читается как дешёвая рамка, приглушённое — как тиснение."""
+    base = (10, 16, 26)
+    return tuple(int(base[i] + (color[i] - base[i]) * k) for i in range(3))
+
+
 def inner_frame(draw, w, h, inset, color, width=1, alpha=255):
-    """Тонкая рамка внутри холста — как паспарту в багете."""
-    if alpha < 255:
-        color = color + (alpha,)
+    """Двойная рамка-паспарту: две волосяные линии с просветом между
+    ними. Одна линия по самому краю — это кант, две с просветом — уже
+    багет."""
+    outer = _mute(color, 0.85 * alpha / 255)
+    inner = _mute(color, 0.40 * alpha / 255)
     draw.rectangle([inset, inset, w - inset - 1, h - inset - 1],
-                   outline=color, width=width)
+                   outline=outer, width=width)
+    g = inset + 9
+    draw.rectangle([g, g, w - g - 1, h - g - 1], outline=inner, width=width)
 
 
 def corner_marks(draw, w, h, inset, arm, color, width=1):
@@ -414,30 +432,25 @@ def make_cover():
     d.rectangle([px - mount, py - mount, px + pw + mount, py + ph + mount],
                 outline=GOLDLINE, width=1)
     d.rectangle([px - 1, py - 1, px + pw, py + ph], outline=(120, 132, 158), width=1)
-    for cxp, cyp, sx, sy in ((px - mount, py - mount, 1, 1),
-                             (px + pw + mount, py - mount, -1, 1),
-                             (px - mount, py + ph + mount, 1, -1),
-                             (px + pw + mount, py + ph + mount, -1, -1)):
-        d.line([cxp, cyp, cxp + sx * 34, cyp], fill=GOLDSOFT, width=2)
-        d.line([cxp, cyp, cxp, cyp + sy * 34], fill=GOLDSOFT, width=2)
 
     inner_frame(d, w, h, 44, GOLDLINE, width=1)
-    corner_marks(d, w, h, 44, 30, GOLDSOFT, width=1)
 
     # надзаголовок с золотым штрихом слева — как на сайте
     rule(d, x_text, x_text + 58, 208, GOLD_ON_DARK, 1)
-    draw_text(d, (x_text + 78, 215), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 25,
+    draw_text(d, (x_text + 78, 210), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
               GOLD_ON_DARK, tracking=7)
 
-    draw_text(d, (x_text, 340), BRAND, 'display-light', 150, CREAM, tracking=3)
+    # плотная антиква — основа, рукописная строка — её противоположность
+    draw_text(d, (x_text, 348), BRAND, 'display', 148, CREAM, tracking=1)
 
-    ornament_rule(d, x_text, 434, 300, GOLD_ON_DARK, diamond=7)
+    ornament_rule(d, x_text, 404, 260, GOLD_ON_DARK, diamond=5)
 
-    draw_text(d, (x_text, 492), 'Кухни на заказ', 'sans', 40, CREAM, tracking=0.6)
-    draw_text(d, (x_text, 528), 'Роберт и Екатерина · ведём проект лично',
-              'sans', 23, CREAM, tracking=0.6)
-    draw_text(d, (x_text, 556), 'Проект, визуализация и схемы электрики — бесплатно',
-              'sans', 23, CREAM_DIM, tracking=0.6)
+    draw_text(d, (x_text, 494), 'кухни на заказ', 'script', 72, GOLD_LIGHT, tracking=1)
+
+    draw_text(d, (x_text, 534), 'Роберт и Екатерина · ведём проект лично',
+              'sans', 22, CREAM, tracking=0.6)
+    draw_text(d, (x_text, 558), 'Проект, визуализация и схемы электрики — бесплатно',
+              'sans', 22, CREAM_DIM, tracking=0.6)
 
     # знак справа, в зоне фотографии
     draw_mark(d, (x_text, 606, x_text + 100, 706), color=GOLDSOFT, accent=GOLD_LIGHT, lw=3)
@@ -462,7 +475,7 @@ SLIDES = [
     ('kitchens/kitchen-02@2x.webp', ['Кухни, в которых', 'удобно готовить'],
      'Роберт и Екатерина ведут проект лично — от первого замера до сборки', (0.5, 0.42)),
     ('kitchens/kitchen-03@2x.webp', ['Проект —', 'бесплатно'],
-     'Планировка, визуализация и схемы электрики. 0 ₽, без обязательств', (0.5, 0.5)),
+     'Планировка, визуализация и схемы электрики. Бесплатно и без обязательств', (0.5, 0.5)),
     ('kitchens/kitchen-07@2x.webp', ['Свою кухню вы', 'увидите до оплаты'],
      'Правим проект столько, сколько нужно, чтобы вам действительно нравилось', (0.5, 0.44)),
     ('kitchens/kitchen-09@2x.webp', ['Гарантия', '24 месяца'],
@@ -492,7 +505,6 @@ def make_live_cover():
         cx = w // 2
 
         inner_frame(d, w, h, 40, GOLDLINE, width=2)
-        corner_marks(d, w, h, 40, 34, GOLDSOFT, width=2)
 
         # номер слайда между двумя штрихами
         label = f'{i:02d}'
@@ -551,9 +563,9 @@ def make_avatar():
 
     ornament_rule(d, cx - 150, 578, 300, GOLD_ON_DARK, diamond=9, thickness=2)
 
-    draw_text(d, (cx, 700), BRAND, 'display-light', 176, CREAM, tracking=6, anchor='ma')
-
-    draw_text(d, (cx, 742), 'КУХНИ НА ЗАКАЗ · ТВЕРЬ', 'sans-medium', 24,
+    draw_text(d, (cx, 660), BRAND, 'display', 152, CREAM, tracking=3, anchor='ma')
+    draw_text(d, (cx, 726), 'кухни на заказ', 'script', 74, GOLD_LIGHT, tracking=1, anchor='ma')
+    draw_text(d, (cx, 792), 'ТВЕРЬ · С 2009', 'sans-medium', 22,
               GOLD_ON_DARK, tracking=8, anchor='ma')
 
     save(img, os.path.join(OUT, '03-avatar', 'avatar-1000x1000.png'))
@@ -602,7 +614,6 @@ def make_menu():
 
         d = ImageDraw.Draw(img)
         inner_frame(d, w, h, 16, GOLDLINE, width=2)
-        corner_marks(d, w, h, 16, 20, GOLDSOFT, width=2)
 
         draw_text(d, (46, 44), f'{i:02d}', 'sans-medium', 22, GOLD_ON_DARK, tracking=4)
         rule(d, 46, 46 + 26, 84, GOLD_ON_DARK, 2)
@@ -651,7 +662,7 @@ SERVICES = [
      'В тон кухне'),
     ('team/katya-plan@2x.webp', 'Проект и схемы электрики',
      'Планировка, визуализация и схема выводов для вашего электрика',
-     '0 ₽'),
+     'Бесплатно'),
 ]
 
 
@@ -719,13 +730,12 @@ def make_stories():
     img = grain(img, sigma=6, opacity=0.05)
     d = ImageDraw.Draw(img)
     inner_frame(d, w, h, 44, GOLDLINE, width=2)
-    corner_marks(d, w, h, 44, 34, GOLDSOFT, width=2)
 
     draw_text(d, (pad, 900), 'МАЛЕНЬКАЯ КУХНЯ', 'sans-medium', 26, GOLD_ON_DARK, tracking=8)
     rule(d, pad, pad + 120, 940, GOLD_ON_DARK, 2)
     y = 1000
     for line in ['Два с половиной', 'метра, из которых', 'выжато всё']:
-        draw_text(d, (pad, y), line, 'display-light', 108, CREAM, tracking=2)
+        draw_text(d, (pad, y), line, 'display-light', 94, CREAM, tracking=1)
         y += 116
     ornament_rule(d, pad, y + 24, 260, GOLD_ON_DARK, diamond=8, thickness=2)
     draw_paragraph(d, (pad, y + 74),
@@ -740,7 +750,6 @@ def make_stories():
     img = warm_glow(img, cx=0.5, cy=0.3, color=(255, 206, 140), strength=0.13, falloff=3.0)
     d = ImageDraw.Draw(img)
     inner_frame(d, w, h, 44, GOLDLINE, width=2)
-    corner_marks(d, w, h, 44, 34, GOLDSOFT, width=2)
 
     draw_text(d, (pad, 300), '5,0 ИЗ 5 НА ЯНДЕКС КАРТАХ', 'sans-medium', 26,
               GOLD_ON_DARK, tracking=8)
@@ -773,7 +782,6 @@ def make_stories():
     img = grain(img, sigma=6, opacity=0.05)
     d = ImageDraw.Draw(img)
     inner_frame(d, w, h, 44, GOLDLINE, width=2)
-    corner_marks(d, w, h, 44, 34, GOLDSOFT, width=2)
 
     draw_text(d, (pad, 1120), 'ЗАМЕР', 'sans-medium', 26, GOLD_ON_DARK, tracking=8)
     rule(d, pad, pad + 120, 1160, GOLD_ON_DARK, 2)
@@ -845,7 +853,6 @@ def make_posts():
     img = grain(img, sigma=6, opacity=0.05)
     d = ImageDraw.Draw(img)
     inner_frame(d, w, h, 40, GOLDLINE, width=2)
-    corner_marks(d, w, h, 40, 30, GOLDSOFT, width=2)
 
     y = 150
     draw_text(d, (0, y), 'ПЕРЕД ЗАМЕРОМ', 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
@@ -872,7 +879,6 @@ def make_posts():
     img = warm_glow(img, cx=0.26, cy=0.1, color=(64, 86, 132), strength=0.26, falloff=2.6)
     d = ImageDraw.Draw(img)
     inner_frame(d, w, h, 40, GOLDLINE, width=2)
-    corner_marks(d, w, h, 40, 30, GOLDSOFT, width=2)
 
     y = 150
     draw_text(d, (0, y), 'ЧЕСТНО', 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
@@ -950,7 +956,6 @@ def make_video_cover():
 
     d = ImageDraw.Draw(base)
     inner_frame(d, w, h, 36, GOLDLINE, width=1)
-    corner_marks(d, w, h, 36, 26, GOLDSOFT, width=1)
 
     draw_text(d, (92, 210), 'КАК МЫ ЭТО ДЕЛАЕМ', 'sans-medium', 22, GOLD_ON_DARK, tracking=7)
     rule(d, 92, 92 + 54, 224, GOLD_ON_DARK, 1)
@@ -991,7 +996,6 @@ def make_albums():
 
         d = ImageDraw.Draw(img)
         inner_frame(d, w, h, 26, GOLDLINE, width=2)
-        corner_marks(d, w, h, 26, 24, GOLDSOFT, width=2)
 
         draw_text(d, (74, 66), f'{i:02d}', 'sans-medium', 22, GOLD_ON_DARK, tracking=4)
         rule(d, 74, 74 + 26, 106, GOLD_ON_DARK, 2)

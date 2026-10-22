@@ -27,6 +27,29 @@ SAFE = {
 problems = []
 state = {'img': None, 'name': ''}
 
+_cmaps = {}
+
+
+def _cmap(path):
+    if path not in _cmaps:
+        from fontTools.ttLib import TTFont
+        _cmaps[path] = set(TTFont(os.path.join(M.FONTS, path)).getBestCmap())
+    return _cmaps[path]
+
+
+def missing_glyphs(text, spec):
+    """Кириллица и знаки лежат в разных поднаборах веб-шрифтов,
+    поэтому проверяем литеру ровно в том файле, куда её отправит
+    make_pack._pick."""
+    cyr, lat = M.FONT_FILES[spec]
+    out = []
+    for ch in text:
+        code = ord(ch)
+        path = cyr if (0x0400 <= code <= 0x04FF or code in (0x0301, 0x2116)) else lat
+        if code not in _cmap(path):
+            out.append(ch)
+    return out
+
 
 def patched_draw(img, *args, **kwargs):
     d = ImageDraw.Draw.__wrapped__(img, *args, **kwargs) if hasattr(ImageDraw.Draw, '__wrapped__') else None
@@ -47,6 +70,12 @@ _orig_save = M.save
 
 
 def patched_text(draw, xy, text, spec, size, fill, tracking=0, anchor='la'):
+    # литера, которой нет в шрифте, печатается пустым прямоугольником —
+    # это первое, что выдаёт дешёвую вёрстку, поэтому ловим её здесь
+    for ch in missing_glyphs(text, spec):
+        problems.append(f'  ✗ {state["name"]}: в гарнитуре «{spec}» нет литеры '
+                        f'«{ch}» (U+{ord(ch):04X}) — строка «{text[:38]}»')
+
     # декоративные элементы с прозрачностью (водяные знаки) не проверяем:
     # они намеренно выходят за край
     if isinstance(fill, tuple) and len(fill) == 4:
