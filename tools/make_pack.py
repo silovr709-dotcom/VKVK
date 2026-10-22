@@ -37,28 +37,26 @@ OUT = os.path.join(ROOT, 'vk')
 # поле, тем дороже выглядит лежащая на нём тонкая светлая линия.
 # ==================================================================
 
-INK = (11, 26, 48)
-SOOT = (7, 17, 33)
-ABYSS = (3, 9, 20)           # глубокая синь — только в самых тенях
-CREAM = (252, 251, 248)
-BONE = (243, 242, 240)
-SAND = (230, 229, 227)
-LINE = (212, 212, 210)
-STONE = (119, 120, 122)
-CLAY = (166, 167, 168)
+INK = (26, 23, 20)           # тёплый графит — глубже и дороже серо-синего
+SOOT = (18, 16, 14)
+ABYSS = (12, 10, 9)
+CREAM = (247, 243, 236)
+BONE = (237, 231, 221)
+SAND = (222, 214, 201)
+LINE = (207, 198, 182)
+STONE = (138, 129, 119)
+CLAY = (181, 169, 149)
 
-# Металл: белое золото и платина вместо жёлтого золота.
-# Белое золото — почти белое с едва заметным теплом, платина — холоднее;
-# разница между ними и держит всю графику.
-METAL_DEEP = (146, 152, 158)
-METAL_LINE = (203, 206, 205)     # тонкие рамки
-METAL_SOFT = (168, 174, 177)
-METAL_LIGHT = (234, 231, 222)    # белое золото
-METAL_ON_DARK = (213, 214, 211)
+# Металл: шампанское и светлая бронза. Не жёлтое золото и не холодное
+# серебро, а нечто между — так металл выглядит на дорогой фурнитуре.
+METAL_DEEP = (146, 132, 110)
+METAL_LINE = (217, 206, 184)     # светлая кромка рамок
+METAL_SOFT = (168, 156, 136)
+METAL_LIGHT = (240, 233, 219)    # почти белое шампанское
+METAL_ON_DARK = (198, 186, 164)
 
-# нейтральные серые — без синевы, иначе поле выглядит замыленным
-CREAM_DIM = (199, 199, 197)
-CREAM_SOFT = (163, 164, 163)
+CREAM_DIM = (205, 199, 190)
+CREAM_SOFT = (166, 160, 152)
 
 # ==================================================================
 # ШРИФТЫ
@@ -323,6 +321,42 @@ def corner_marks(draw, w, h, inset, arm, color, width=1):
         draw.line(pts, fill=color, width=width, joint='curve')
 
 
+def gradient_fill(size, box, top, bottom):
+    """Вертикальный градиент внутри прямоугольника. Ровная заливка —
+    главный источник «двухмерности»; градиент даёт ощущение света."""
+    x0, y0, x1, y1 = box
+    ph = y1 - y0 + 1
+    strip = Image.new('RGB', (1, ph))
+    strip.putdata([
+        tuple(int(top[i] + (bottom[i] - top[i]) * y / max(1, ph - 1)) for i in range(3))
+        for y in range(ph)
+    ])
+    return strip.resize((x1 - x0 + 1, ph), Image.LANCZOS)
+
+
+def card(img, box, top=(38, 34, 29), bottom=(19, 17, 15), shadow=True,
+         light=None, inner=True):
+    """Панель с объёмом: мягкая тень, вертикальный градиент, фаска по
+    кромке и внутренняя волосяная рамка. Плоский прямоугольник с
+    однотонной заливкой — это ровно то, что читается как дёшево."""
+    light = light or METAL_LINE
+    x0, y0, x1, y1 = box
+    if shadow:
+        sh = Image.new('L', img.size, 0)
+        ImageDraw.Draw(sh).rectangle([x0 - 6, y0 + 2, x1 + 6, y1 + 20], fill=150)
+        sh = sh.filter(ImageFilter.GaussianBlur(30))
+        img = Image.composite(Image.new('RGB', img.size, (0, 0, 0)), img, sh)
+    img.paste(gradient_fill(img.size, box, top, bottom), (x0, y0))
+    d = ImageDraw.Draw(img)
+    # фаска: свет сверху и слева, тень снизу и справа
+    d.line([(x0, y1), (x0, y0), (x1, y0)], fill=_mute(light, 0.80), width=2)
+    d.line([(x1, y0), (x1, y1), (x0, y1)], fill=(0, 0, 0), width=2)
+    if inner:
+        d.rectangle([x0 + 9, y0 + 9, x1 - 9, y1 - 9],
+                    outline=_mute(light, 0.26), width=1)
+    return img
+
+
 def cell_frame(draw, box, color=METAL_LINE, inset=6, width=1):
     """Тонкая рамка из белого золота: две волосяные линии с просветом.
     Геометрия держится на том, что просвет везде одинаковый."""
@@ -446,37 +480,43 @@ def make_cover():
     w, h = 1920, 768
     x_text = 405
 
+    # фотография остаётся видимой: завеса заметно слабее прежней
     snap = photo('team/hero-rob-kate-wide@2x.webp', (w, h), focus=(0.5, 0.42))
-    snap = grade(snap, contrast=1.12, color=1.02)
-    snap = warm_glow(snap, cx=0.76, cy=0.16, color=(190, 210, 240), strength=0.22, falloff=2.4)
-    base = Image.composite(Image.new('RGB', (w, h), INK), snap, ink_curtain(w, h))
-    # сверху ВК накладывает своё меню — гасим, как сделано на сайте
+    snap = grade(snap, contrast=1.15, color=1.06)
+    snap = warm_glow(snap, cx=0.74, cy=0.2, color=(255, 224, 178), strength=0.30, falloff=2.3)
+    snap = vignette(snap, strength=0.36)
+    base = Image.composite(Image.new('RGB', (w, h), INK), snap,
+                           ink_curtain(w, h, top=0.30, mid=0.60, bottom=0.86))
     topm = ImageChops.invert(vertical_fade((w, h), start=0.0, end=200 / h, power=1.0))
     base = Image.composite(Image.new('RGB', (w, h), INK), base,
                            topm.point(lambda v: int(v * 0.85)))
-    base = grain(base, sigma=6, opacity=0.04)
 
+    # панель с текстом — с тенью, градиентом и фаской
+    base = card(base, (372, 148, 1036, 442), top=(34, 29, 25), bottom=(14, 12, 11))
     d = ImageDraw.Draw(base)
 
-    # типографический блок собран в тонкую раму
-    cell_frame(d, (372, 156, 952, 448), METAL_LINE, inset=10)
-    rule(d, x_text, x_text + 58, 208, METAL_ON_DARK, 1)
-    draw_text(d, (x_text + 78, 215), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
+    rule(d, x_text, x_text + 58, 202, METAL_ON_DARK, 1)
+    draw_text(d, (x_text + 78, 209), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
               METAL_ON_DARK, tracking=7)
-    draw_text(d, (x_text, 330), BRAND, 'display', 122, CREAM, tracking=1)
-    draw_text(d, (x_text, 420), 'кухни на заказ', 'script', 62, METAL_LIGHT, tracking=1)
+    draw_text(d, (x_text, 322), BRAND, 'display', 122, CREAM, tracking=1)
+    draw_text(d, (x_text, 412), 'кухни на заказ', 'script', 62, METAL_LIGHT, tracking=1)
 
-    # пять фактов — одним рядом, каждый в своей тонкой раме
+    # пять фактов — пять отдельных панелей, у каждой своя тень и фаска
     gap = 14
     cw = (1515 - 405 - gap * 4) // 5
-    top_c, bot_c = 452, 560
+    top_c, bot_c = 458, 562
     for i, (a, b) in enumerate(COVER_FACTS):
         x0 = 405 + i * (cw + gap)
-        cell_frame(d, (x0, top_c, x0 + cw, bot_c), METAL_LINE, inset=6)
+        base = card(base, (x0, top_c, x0 + cw, bot_c),
+                    top=(32, 27, 23), bottom=(13, 11, 10), light=METAL_SOFT,
+                    inner=False)
+        dd = ImageDraw.Draw(base)
         cxm = x0 + cw / 2
-        draw_text(d, (cxm, top_c + 42), a, 'sans-medium', 21, METAL_LIGHT,
+        draw_text(dd, (cxm, top_c + 42), a, 'sans-medium', 21, METAL_LIGHT,
                   tracking=1.4, anchor='ma')
-        draw_text(d, (cxm, top_c + 72), b, 'sans', 21, CREAM, tracking=0.6, anchor='ma')
+        draw_text(dd, (cxm, top_c + 74), b, 'sans', 21, CREAM, tracking=0.6, anchor='ma')
+
+    base = grain(base, sigma=6, opacity=0.04)
 
     save(base, os.path.join(OUT, '01-oblozhka', 'oblozhka-1920x768.jpg'))
 
