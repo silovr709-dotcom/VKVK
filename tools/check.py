@@ -47,6 +47,11 @@ _orig_save = M.save
 
 
 def patched_text(draw, xy, text, spec, size, fill, tracking=0, anchor='la'):
+    # декоративные элементы с прозрачностью (водяные знаки) не проверяем:
+    # они намеренно выходят за край
+    if isinstance(fill, tuple) and len(fill) == 4:
+        return _orig_text(draw, xy, text, spec, size, fill, tracking, anchor)
+
     width = M.text_width(text, spec, size, tracking)
     x, y = xy
     if anchor == 'ma':
