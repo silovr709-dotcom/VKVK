@@ -55,6 +55,11 @@ METAL_SOFT = (168, 156, 136)
 METAL_LIGHT = (240, 233, 219)    # почти белое шампанское
 METAL_ON_DARK = (198, 186, 164)
 
+# акцент бренда — приглушённая терракота. Один, но везде: ромб в
+# разделителе, цифры, штрих перед надзаголовком, метка знака.
+ACCENT = (176, 96, 60)
+ACCENT_LIGHT = (214, 141, 100)
+
 CREAM_DIM = (205, 199, 190)
 CREAM_SOFT = (166, 160, 152)
 
@@ -374,7 +379,7 @@ def ornament_rule(draw, x, y, length, color, diamond=7, thickness=1):
     draw.line([(cx + diamond * 2.4, y), (x + length, y)], fill=color, width=thickness)
     draw.polygon(
         [(cx, y - diamond), (cx + diamond, y), (cx, y + diamond), (cx - diamond, y)],
-        fill=color,
+        fill=ACCENT,
     )
 
 
@@ -492,19 +497,20 @@ def make_cover():
                            topm.point(lambda v: int(v * 0.85)))
 
     # панель с текстом — с тенью, градиентом и фаской
-    base = card(base, (372, 148, 1036, 442), top=(34, 29, 25), bottom=(14, 12, 11))
+    base = card(base, (372, 148, 1036, 452), top=(34, 29, 25), bottom=(14, 12, 11))
     d = ImageDraw.Draw(base)
 
-    rule(d, x_text, x_text + 58, 202, METAL_ON_DARK, 1)
-    draw_text(d, (x_text + 78, 209), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
+    rule(d, x_text, x_text + 58, 190, ACCENT, 2)
+    draw_text(d, (x_text + 78, 197), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
               METAL_ON_DARK, tracking=7)
-    draw_text(d, (x_text, 322), BRAND, 'display', 122, CREAM, tracking=1)
-    draw_text(d, (x_text, 412), 'кухни на заказ', 'script', 62, METAL_LIGHT, tracking=1)
+    draw_text(d, (x_text, 298), BRAND, 'display', 110, CREAM, tracking=1)
+    draw_text(d, (x_text, 380), 'кухни на заказ', 'script', 58, METAL_LIGHT, tracking=1)
+    draw_text(d, (x_text, 432), PHONE, 'sans-medium', 26, ACCENT_LIGHT, tracking=1.5)
 
     # пять фактов — пять отдельных панелей, у каждой своя тень и фаска
     gap = 14
     cw = (1515 - 405 - gap * 4) // 5
-    top_c, bot_c = 458, 562
+    top_c, bot_c = 468, 566
     for i, (a, b) in enumerate(COVER_FACTS):
         x0 = 405 + i * (cw + gap)
         base = card(base, (x0, top_c, x0 + cw, bot_c),
