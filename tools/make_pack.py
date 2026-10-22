@@ -408,51 +408,47 @@ def make_cover():
 
     base = ink_field((w, h))
 
-    # кухня остаётся фоном: приглушённая, вплавляется в поле слева направо
-    snap = photo('kitchens/kitchen-11@2x.webp', (w, h), bright=0.62, focus=(0.62, 0.45))
-    snap = grade(snap, contrast=1.14, color=1.06)
-    snap = vignette(snap, strength=0.34)
-    base.paste(snap, (0, 0), fade_mask((w, h), start=0.58, end=0.80, power=1.0))
+    # холодный ореол за фигурами — отделяет вас от поля, не рисуя рамки
+    base = warm_glow(base, cx=0.78, cy=0.34, color=(58, 74, 116), strength=0.22, falloff=3.0)
 
-    # вы — вклеенная пластина справа: тёмное паспарту и золотой волосяной кант
-    pw, ph = 390, 500
-    px, py = 1360, 156
-    mount = 14
-    plate = photo('team/new/rob-kate-novye.jpg', (pw, ph), bright=1.5, focus=(0.5, 0.26))
-    plate = grade(plate, contrast=1.16, color=1.08)
-    plate = warm_glow(plate, cx=0.5, cy=0.12, color=(255, 206, 140), strength=0.20, falloff=2.4)
-    plate = vignette(plate, strength=0.14)
-    base.paste(Image.new('RGB', (pw + mount * 2, ph + mount * 2), ABYSS),
-               (px - mount, py - mount))
-    base.paste(plate, (px, py))
+    # вы вписаны в обложку: ни пластины, ни рамки. Фигура стоит в поле и
+    # книзу растворяется в нём, а не обрезается краем холста.
+    cut = Image.open(os.path.join(SRC, 'team/new/rob-kate-novye-bez-fona.png')).convert('RGBA')
+    scale = 0.714
+    cw, ch = int(cut.width * scale), int(cut.height * scale)
+    cut = cut.resize((cw, ch), Image.LANCZOS)
+    cut_rgb = ImageEnhance.Brightness(cut.convert('RGB')).enhance(1.35)
+    cut_rgb.putalpha(cut.getchannel('A'))
+    cut = cut_rgb
+
+    top = 95
+    left = 1217
+    fade_from, fade_to = 460, 700          # в координатах холста
+    melt = ImageChops.invert(vertical_fade((cw, ch),
+                                           start=(fade_from - top) / ch,
+                                           end=(fade_to - top) / ch, power=1.0))
+    cut.putalpha(ImageChops.multiply(cut.getchannel('A'), melt))
+    base.paste(cut, (left, top), cut)
 
     d = ImageDraw.Draw(base)
 
-    # кант пластины: золото по внешнему краю, холодная нить по самому кадру
-    d.rectangle([px - mount, py - mount, px + pw + mount, py + ph + mount],
-                outline=GOLDLINE, width=1)
-    d.rectangle([px - 1, py - 1, px + pw, py + ph], outline=(120, 132, 158), width=1)
-
-    inner_frame(d, w, h, 44, GOLDLINE, width=1)
-
     # надзаголовок с золотым штрихом слева — как на сайте
-    rule(d, x_text, x_text + 58, 208, GOLD_ON_DARK, 1)
-    draw_text(d, (x_text + 78, 210), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
+    rule(d, x_text, x_text + 58, 210, GOLD_ON_DARK, 1)
+    draw_text(d, (x_text + 78, 212), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 24,
               GOLD_ON_DARK, tracking=7)
 
-    # плотная антиква — основа, рукописная строка — её противоположность
-    draw_text(d, (x_text, 348), BRAND, 'display', 148, CREAM, tracking=1)
+    # обложка читается мелко и быстро, поэтому здесь только крупное:
+    # плотная антиква и одна рукописная строка ей в противовес
+    draw_text(d, (x_text, 372), BRAND, 'display', 162, CREAM, tracking=1)
 
-    ornament_rule(d, x_text, 404, 260, GOLD_ON_DARK, diamond=5)
+    ornament_rule(d, x_text, 428, 260, GOLD_ON_DARK, diamond=5)
 
-    draw_text(d, (x_text, 494), 'кухни на заказ', 'script', 72, GOLD_LIGHT, tracking=1)
+    draw_text(d, (x_text, 502), 'кухни на заказ', 'script', 74, GOLD_LIGHT, tracking=1)
 
-    draw_text(d, (x_text, 534), 'Роберт и Екатерина · ведём проект лично',
-              'sans', 22, CREAM, tracking=0.6)
-    draw_text(d, (x_text, 558), 'Проект, визуализация и схемы электрики — бесплатно',
-              'sans', 22, CREAM_DIM, tracking=0.6)
+    draw_text(d, (x_text, 548), 'Роберт и Екатерина · Тверь · с 2009',
+              'sans', 22, CREAM_DIM, tracking=0.8)
 
-    # знак справа, в зоне фотографии
+    # знак — внизу слева, в поле: он больше не спорит с портретом
     draw_mark(d, (x_text, 606, x_text + 100, 706), color=GOLDSOFT, accent=GOLD_LIGHT, lw=3)
 
     save(base, os.path.join(OUT, '01-oblozhka', 'oblozhka-1920x768.jpg'))
