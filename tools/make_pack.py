@@ -386,20 +386,40 @@ PHONE = '+7 (910) 537-89-91'
 def make_cover():
     print('01 · Главная обложка')
     w, h = 1920, 768
-    x_text = 480
+    x_text = 420
 
     base = ink_field((w, h))
-    snap = photo('kitchens/kitchen-11@2x.webp', (w, h), bright=1.04, focus=(0.66, 0.45))
-    snap = grade(snap, contrast=1.18, color=1.1)
-    snap = warm_glow(snap, cx=0.62, cy=0.1, color=(255, 208, 146), strength=0.30, falloff=2.2)
-    snap = vignette(snap, strength=0.24)
-    base.paste(snap, (0, 0), fade_mask((w, h), start=0.48, end=0.72, power=1.1))
 
-    # крупная буква в подложке: читается только как фактура поля
-    mark_layer = watermark(w, h, 'display-light', 660, GOLD_LIGHT, 16, center=(0.13, 0.52))
-    base.paste(mark_layer, (0, 0), mark_layer)
+    # кухня остаётся фоном: приглушённая, вплавляется в поле слева направо
+    snap = photo('kitchens/kitchen-11@2x.webp', (w, h), bright=0.62, focus=(0.62, 0.45))
+    snap = grade(snap, contrast=1.14, color=1.06)
+    snap = vignette(snap, strength=0.34)
+    base.paste(snap, (0, 0), fade_mask((w, h), start=0.58, end=0.80, power=1.0))
+
+    # вы — вклеенная пластина справа: тёмное паспарту и золотой волосяной кант
+    pw, ph = 390, 500
+    px, py = 1360, 156
+    mount = 14
+    plate = photo('team/new/rob-kate-novye.jpg', (pw, ph), bright=1.5, focus=(0.5, 0.26))
+    plate = grade(plate, contrast=1.16, color=1.08)
+    plate = warm_glow(plate, cx=0.5, cy=0.12, color=(255, 206, 140), strength=0.20, falloff=2.4)
+    plate = vignette(plate, strength=0.14)
+    base.paste(Image.new('RGB', (pw + mount * 2, ph + mount * 2), ABYSS),
+               (px - mount, py - mount))
+    base.paste(plate, (px, py))
 
     d = ImageDraw.Draw(base)
+
+    # кант пластины: золото по внешнему краю, холодная нить по самому кадру
+    d.rectangle([px - mount, py - mount, px + pw + mount, py + ph + mount],
+                outline=GOLDLINE, width=1)
+    d.rectangle([px - 1, py - 1, px + pw, py + ph], outline=(120, 132, 158), width=1)
+    for cxp, cyp, sx, sy in ((px - mount, py - mount, 1, 1),
+                             (px + pw + mount, py - mount, -1, 1),
+                             (px - mount, py + ph + mount, 1, -1),
+                             (px + pw + mount, py + ph + mount, -1, -1)):
+        d.line([cxp, cyp, cxp + sx * 34, cyp], fill=GOLDSOFT, width=2)
+        d.line([cxp, cyp, cxp, cyp + sy * 34], fill=GOLDSOFT, width=2)
 
     inner_frame(d, w, h, 44, GOLDLINE, width=1)
     corner_marks(d, w, h, 44, 30, GOLDSOFT, width=1)
@@ -409,21 +429,18 @@ def make_cover():
     draw_text(d, (x_text + 78, 215), 'МЕБЕЛЬНОЕ АТЕЛЬЕ · ТВЕРЬ', 'sans-medium', 25,
               GOLD_ON_DARK, tracking=7)
 
-    draw_text(d, (x_text, 340), BRAND, 'display-light', 172, CREAM, tracking=3)
+    draw_text(d, (x_text, 340), BRAND, 'display-light', 150, CREAM, tracking=3)
 
     ornament_rule(d, x_text, 434, 300, GOLD_ON_DARK, diamond=7)
 
     draw_text(d, (x_text, 492), 'Кухни на заказ', 'sans', 40, CREAM, tracking=0.6)
-
-    draw_text(d, (x_text, 530),
-              'Проект, визуализация и схемы электрики — бесплатно',
+    draw_text(d, (x_text, 528), 'Роберт и Екатерина · ведём проект лично',
+              'sans', 23, CREAM, tracking=0.6)
+    draw_text(d, (x_text, 556), 'Проект, визуализация и схемы электрики — бесплатно',
               'sans', 23, CREAM_DIM, tracking=0.6)
-    draw_text(d, (x_text, 558),
-              'Гарантия 24 месяца · Оплата 50 / 50',
-              'sans', 23, CREAM_SOFT, tracking=0.6)
 
-    # знак в правом нижнем углу, в зоне фотографии
-    draw_mark(d, (w - 236, h - 190, w - 136, h - 90), color=GOLDSOFT, accent=GOLD_LIGHT, lw=3)
+    # знак справа, в зоне фотографии
+    draw_mark(d, (x_text, 606, x_text + 100, 706), color=GOLDSOFT, accent=GOLD_LIGHT, lw=3)
 
     save(base, os.path.join(OUT, '01-oblozhka', 'oblozhka-1920x768.jpg'))
 
@@ -436,7 +453,6 @@ def make_cover():
     dd.rectangle([1460, 0, w, h], fill=(255, 80, 80, 38))
     dd.rectangle([460, 130, 1460, 568], outline=(211, 189, 149, 170), width=2)
     save(check, os.path.join(OUT, '01-oblozhka', '_proverka-bezopasnoi-zony.jpg'))
-
 
 # ==================================================================
 # 02 · ЖИВАЯ ОБЛОЖКА 1080×1920 (до 5 слайдов)
